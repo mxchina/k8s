@@ -1,0 +1,50 @@
+etcd:
+
+
+#保存快照
+export ETCDCTL_API=3
+HOST_1=https://10.255.247.121:2379
+HOST_2=https://10.255.247.122:2379
+HOST_3=https://10.255.247.123:2379
+ENDPOINTS=${HOST_1},${HOST_2},${HOST_3}
+etcdctl \
+--cacert=/etc/kubernetes/ssl/ca.pem \
+--cert=/etc/kubernetes/ssl/kubernetes.pem \
+--key=/etc/kubernetes/ssl/kubernetes-key.pem \
+--endpoints=${ENDPOINTS} \
+snapshot save snapshot.db
+
+
+
+#查看刚保存的快照文件信息
+export ETCDCTL_API=3
+HOST_1=https://10.255.247.121:2379
+HOST_2=https://10.255.247.122:2379
+HOST_3=https://10.255.247.123:2379
+ENDPOINTS=${HOST_1},${HOST_2},${HOST_3}
+etcdctl \
+--cacert=/etc/kubernetes/ssl/ca.pem \
+--cert=/etc/kubernetes/ssl/kubernetes.pem \
+--key=/etc/kubernetes/ssl/kubernetes-key.pem \
+--endpoints=${ENDPOINTS} \
+--write-out=table snapshot status snapshot.db
+
+
+
+#根据快照文件恢复集群
+https://github.com/etcd-io/etcd/blob/master/Documentation/op-guide/recovery.md#snapshotting-the-keyspace
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

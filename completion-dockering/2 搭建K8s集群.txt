@@ -1,0 +1,42 @@
+ElasticSearch集群：
+	es：3台		247.111		247.112		247.113        2cpu+8g+140g
+	Kinbana：1台	247.116		1cpu+4g+40g
+	
+	
+	
+
+K8s 集群规划：
+	etcd：3台	247.121 122 123		2cpu+8g+40g
+	master：3台		247.126 127 128		2cpu+8g+40g
+	node：先搭2台	247.131 132			4cpu+16g+90g
+	
+	
+--experimental-cluster-signing-duration=86700h0m0s
+
+systemctl start kube-apiserver
+systemctl start kube-controller-manager.service
+systemctl start kube-scheduler.service
+systemctl start kubelet
+systemctl start kube-proxy
+
+
+systemctl status kube-apiserver
+systemctl status kube-controller-manager.service
+systemctl status kube-scheduler.service
+systemctl status kubelet
+systemctl status kube-proxy
+
+systemctl start nginx-proxy
+systemctl start kubelet
+systemctl start kube-proxy
+
+
+systemctl status nginx-proxy
+systemctl status kubelet
+systemctl status kube-proxy
+
+
+
+
+
+

@@ -1,0 +1,9 @@
+目标：搭建jenkins gitlab harbor docker环境服务器 各一台 共4台
+
+1 jenkins  247.24 40g 
+
+2 gitlab   247.22 40g
+
+3 harbor   247.20 40+40g
+
+4 docker环境服务器  247.30 40+40g

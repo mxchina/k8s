@@ -1,0 +1,36 @@
+1 基础镜像构建
+
+  - 以官方tomcat/8.0/jre8-alpine为基础，修改catalina_home为/syent/common/tomcat8022，删除webapps/下的所有文件
+  - 
+  
+2 应用镜像构建
+  
+  - 复制war包到webapps下
+  - 复制sydb目录到tomcat8022/conf/下
+  - JVM设置由yaml文件完成，通过设置环境变量JAVA_OPS
+  
+3 k8s-POD的yaml文件配置
+  - namespace
+    - ysc
+	- sc
+  - 资源限制
+    - 设置默认cpu请求0.25 设置默认cpu限制1
+	- 设置默认内存请求2Gi，设置默认内存限制4Gi
+	- 每个deployment的配置文件中，如果可以，最好具体的配置cpu和mem的请求和限制
+	- JVM设置堆内存，可以做成环境变量，由yaml文件传入
+	
+  - label设置
+    - type: 这项可以不需要，由name中添加if或者ui等来完成识别
+    - appName
+      - cms，sns，cmt，transfer  ...
+    - dep-evn
+	  - ysc, sc, cs
+  
+
+
+4 k8s-server的yaml文件配置模板
+
+
+
+5 k8s-deployment的yaml文件配置模板 
+  

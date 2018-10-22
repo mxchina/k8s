@@ -1,0 +1,84 @@
+设置命名空间的kubectl上下文环境，如果切换到ysc，那么所有操作默认在ysc的namespace下。
+kubectl config set-context ysc --namespace=ysc \
+  --cluster=kubernetes \
+  --user=kubernetes
+
+kubectl config use-context ysc  
+kubectl config current-context
+
+
+
+
+
+docker rmi $(docker images |grep registry.synet.com/ysc/|awk '{print $1":"$2}')
+docker images
+
+
+sed -i '108 aexport CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:/synet/common/apr152/lib' taaa
+sed -i '109 aexport LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/synet/common/apr/lib' taaa
+
+tools.jar
+dt.jar
+
+apr.tgz
+apr152.tgz
+
+
+COPY tmp /synet/
+tar zxvf lib.tgz -C /synet/common/apr/
+tar zxvf apr152.tgz -C /synet/common/
+rm -f /synet/apr*
+mv /synet/sso.war /synet/common/tomcat8022/webapps/
+mv /synet/sso.properties /synet/common/tomcat8022/conf/sydb/
+mv {/synet/toos.jar,/synet/dt.jar} /$JAVA_HOME/lib/
+sed -i '108 aexport CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:/synet/common/apr152/lib' taaa
+sed -i '109 aexport LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/synet/common/apr/lib' taaa
+
+
+
+-----------------------复制war包和properties配置文件到构建镜像服务器-------------------------------
+#安装scp
+wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-6.repo
+yum clean all
+yum makecache
+yum install -y openssh-clients
+
+#查看是否有特殊配置
+cat /synet/common/tomcat8022/conf/server.xml |grep  "<Context path="
+ls /synet/wwwroot/ |grep -v "\."
+
+
+#复制war包和properties配置文件到构建镜像服务器
+uiOrIf=if
+dirName=IF
+appName=$(ls /synet/wwwroot/ |egrep ".war$" |awk -F "if" '{print $1}')
+ssh 10.255.247.20 "mkdir -p /synet/dockerBuild/${dirName}/${appName}-${uiOrIf} \
+    && cp /synet/dockerBuild/{create_image.sh,Dockerfile} \
+	/synet/dockerBuild/${dirName}/${appName}-${uiOrIf}"
+
+	
+appNameif=${appName}if
+scp /synet/{wwwroot/$appNameif.war,common/tomcat8022/conf/sydb/*.properties} \
+    10.255.247.20:/synet/dockerBuild/${dirName}/${appName}-${uiOrIf}/
+
+
+#密码
+WiFi0Admin@9
+
+
+#记得记录
+------------------------------------------------------------------------------------------------------
+
+
+
+docker rmi $(docker images |grep registry.synet.com/ysc/ | awk '{print $1":"$2}')
+
+
+
+for dir in $(ll |egrep "^d"|awk '{print $NF}')
+do
+sed -i s/tomcat8-jre7:base/tomcat8-jre7:apr/g ${dir}/Dockerfile
+done
+
+
+

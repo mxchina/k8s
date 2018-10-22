@@ -1,0 +1,25 @@
+
+
+create table tb_app_config_bak like tb_app_config;
+insert into tb_app_config_bak select * from tb_app_config;
+
+yui-adsys         IN      A        10.255.247.131
+yui-adsys         IN      A        10.255.247.132
+yui-adsys         IN      A        10.255.247.133
+yui-adsys         IN      A        10.255.247.134
+yui-adsys         IN      A        10.255.247.126
+yui-adsys         IN      A        10.255.247.127
+yui-adsys         IN      A        10.255.247.128
+
+
+yui-usersys         IN      A        10.255.247.131
+yui-usersys         IN      A        10.255.247.132
+yui-usersys         IN      A        10.255.247.133
+yui-usersys         IN      A        10.255.247.134
+yui-usersys         IN      A        10.255.247.126
+yui-usersys         IN      A        10.255.247.127
+yui-usersys         IN      A        10.255.247.128
+
+
+数据库中修改tb_app_config，有的还需要修改tb_app_info，比如管理中心ui等
+各ui暴露都采用nodeport，端口区分规划好，数据库中配置好。

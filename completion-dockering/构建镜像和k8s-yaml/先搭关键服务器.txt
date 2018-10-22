@@ -1,0 +1,36 @@
+IF:
+转发
+用户
+cms
+广告
+管理中心
+SSO服务端
+基础数据系统接口
+操作日志接口系统
+
+UI:
+管理中心 UI+IF
+用户系统 UI+IF
+转发服务器 UI+IF
+SSO服务端  SRV
+
+for SNAME in $(ll |egrep "^-"|awk '{print $NF}'|cut -d . -f 1)
+do
+    $(ll /sydb |egrep "^-"|awk '{print $NF}'|cut -d . -f 1)
+done
+
+
+for name in $(ls sydb )
+do
+    targetDir=$(echo ${name} |cut -d . -f 1)
+	echo ${targetDir}
+    cp transferconfigif/Dockerfile ${targetDir}/
+done
+
+for name in $(ls sydb)
+do
+    targetDir=$(echo ${name} |cut -d . -f 1)
+	echo ${targetDir}
+    rm -f transferconfigif/transferconfigif.properties ${targetDir}/
+done
+

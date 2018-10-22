@@ -1,0 +1,135 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transferconfigif
+  namespace: ysc
+spec:
+  selector:
+    matchLabels:
+      appName: transferconfigif
+      dep-env: ysc
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        appName: transferconfigif
+        dep-env: ysc
+    spec:
+      containers:
+      - name: transferconfigif
+        image: registry.synet.com/ysc/transferconfigif:v20180913
+        env:
+        - name: JAVA_OPTS
+          value: "-server -Xms1400M -Xmx1400M"
+        resources:
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+          requests:
+            cpu: "0.25"
+            memory: "4Gi"
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: transferconfigif
+  namespace: ysc
+  labels:
+    appName: transferconfigif
+    dep-env: ysc
+spec:
+  selector:
+    appName: transferconfigif
+    dep-env: ysc
+  ports:
+  - name: transferconfigif
+    port: 8080
+    protocol: TCP
+    
+
+        
+---------
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: cpu-limit-range
+spec:
+  limits:
+  - default:
+      cpu: 1
+    defaultRequest:
+      cpu: 0.5
+    type: Container
+    
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: mem-limit-range
+spec:
+  limits:
+  - default:
+      memory: 512Mi
+    defaultRequest:
+      memory: 256Mi
+    type: Container
+    
+kubectl create -f xxx.yaml --namespace=ysc
+    
+-----------------
+apiVersion: v1
+kind: Pod
+metadata:
+  name: default-cpu-demo-2
+spec:
+  containers:
+  - name: default-cpu-demo-2-ctr
+    image: nginx
+    resources:
+      limits:
+        cpu: "1"
+        
+        
+-------------------------------------------------------------
+
+PodPriority--设置 pod抢占优先级设置
+
+apiVersion: scheduling.k8s.io/v1beta1
+kind: PriorityClass
+metadata:
+  name: high-priority
+value: 1000000
+globalDefault: false
+description: "This priority class should be used for XYZ service pods only."
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  labels:
+    env: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    imagePullPolicy: IfNotPresent
+  priorityClassName: high-priority
+  
+--------------
+
+
+
+

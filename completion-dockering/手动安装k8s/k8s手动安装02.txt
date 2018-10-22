@@ -1,0 +1,351 @@
+安装证书步骤（在某台机器上生产所有证书，然后将证书拷贝到其他master或者node上）
+
+1.安装CFSSL
+
+wget https://pkg.cfssl.org/R1.2/cfssl_linux-amd64
+chmod +x cfssl_linux-amd64
+mv cfssl_linux-amd64 /usr/local/bin/cfssl
+
+wget https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64
+chmod +x cfssljson_linux-amd64
+mv cfssljson_linux-amd64 /usr/local/bin/cfssljson
+
+wget https://pkg.cfssl.org/R1.2/cfssl-certinfo_linux-amd64
+chmod +x cfssl-certinfo_linux-amd64
+mv cfssl-certinfo_linux-amd64 /usr/local/bin/cfssl-certinfo
+
+export PATH=/usr/local/bin:$PATH
+
+2.配置CA（为简单方便，etcd和k8s都共用一个ca）
+
+mkdir /root/ssl
+cd /root/ssl
+# 根据config.json文件的格式创建如下的ca-config.json文件
+# 过期时间设置成了 87600h
+cat > ca-config.json <<EOF
+{
+  "signing": {
+    "default": {
+      "expiry": "87600h"
+    },
+    "profiles": {
+      "kubernetes": {
+        "usages": [
+            "signing",
+            "key encipherment",
+            "server auth",
+            "client auth"
+        ],
+        "expiry": "87600h"
+      }
+    }
+  }
+}
+EOF
+3.创建CA证书签名请求，即创建ca-csr.json 文件，然后生成 CA 证书和私钥：
+cat > ca-csr.json << EOF
+{
+  "CN": "kubernetes",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "CN",
+      "ST": "ChongQing",
+      "L": "ChongQing",
+      "O": "k8s",
+      "OU": "System"
+    }
+  ],
+    "ca": {
+       "expiry": "87600h"
+    }
+}
+EOF
+cfssl gencert -initca ca-csr.json | cfssljson -bare ca
+ls ca*
+
+
+ca-config.json  ca.csr  ca-csr.json  ca-key.pem  ca.pem
+5.创建Kubernetes和etcd证书签名请求文件（etcd和k8s都用）kubernetes-csr.json，注意记得替换相应ip，etcd和k8s-master的ip都要加上，然后生成 kubernetes 证书和私钥
+cat > kubernetes-csr.json << EOF
+{
+    "CN": "kubernetes",
+    "hosts": [
+      "127.0.0.1",
+      "10.255.247.121",
+      "10.255.247.122",
+      "10.255.247.123",
+      "10.255.247.126",
+      "10.255.247.127",
+      "10.255.247.128",
+      "10.254.0.1",
+      "kubernetes",
+      "kubernetes.default",
+      "kubernetes.default.svc",
+      "kubernetes.default.svc.cluster",
+      "kubernetes.default.svc.cluster.local"
+    ],
+    "key": {
+        "algo": "rsa",
+        "size": 2048
+    },
+    "names": [
+        {
+            "C": "CN",
+            "ST": "ChongQing",
+            "L": "ChongQing",
+            "O": "k8s",
+            "OU": "System"
+        }
+    ]
+}
+EOF
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes kubernetes-csr.json | cfssljson -bare kubernetes
+ls kubernetes*
+
+kubernetes.csr  kubernetes-csr.json  kubernetes-key.pem  kubernetes.pem
+7.创建admin证书签名请求文件 admin-csr.json，然后生成 admin 证书和私钥
+cat > admin-csr.json << EOF
+{
+  "CN": "admin",
+  "hosts": [],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "CN",
+      "ST": "ChongQing",
+      "L": "ChongQing",
+      "O": "system:masters",
+      "OU": "System"
+    }
+  ]
+}
+EOF
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes admin-csr.json | cfssljson -bare admin
+ls admin*
+
+admin.csr  admin-csr.json  admin-key.pem  admin.pem
+9. 创建 kube-proxy 证书签名请求文件 kube-proxy-csr.json，然后生成 kube-proxy 客户端证书和私钥
+cat > kube-proxy-csr.json <<EOF
+{
+  "CN": "system:kube-proxy",
+  "hosts": [],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "CN",
+      "ST": "ChongQing",
+      "L": "ChongQing",
+      "O": "k8s",
+      "OU": "System"
+    }
+  ]
+}
+EOF
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes  kube-proxy-csr.json | cfssljson -bare kube-proxy
+ls kube-proxy*
+
+kube-proxy.csr  kube-proxy-csr.json  kube-proxy-key.pem  kube-proxy.pem
+11.分发证书，将生成的证书和秘钥文件（后缀名为.pem）拷贝到所有机器的 /etc/kubernetes/ssl 目录下备用；
+for IP in 1 2 3 6 7 8
+do
+ssh 10.255.247.12${IP} "mkdir -p /etc/kubernetes/ssl"
+scp /root/ssl/*.pem 10.255.247.12${IP}:/etc/kubernetes/ssl/
+done
+
+12.安装Kubectl命令行工具
+
+wget https://dl.k8s.io/v1.11.2/kubernetes-client-linux-amd64.tar.gz
+tar -xzvf kubernetes-client-linux-amd64.tar.gz
+cp kubernetes/client/bin/kube* /usr/bin/
+chmod a+x /usr/bin/kube*
+13.创建 kubectl kubeconfig 文件
+#master上后面修改为本机ip，node上修改为127.0.0.1通过nginx反向代理出去。
+export KUBE_APISERVER="https://10.255.247.126:6443"
+# 设置集群参数
+kubectl config set-cluster kubernetes \
+  --certificate-authority=/etc/kubernetes/ssl/ca.pem \
+  --embed-certs=true \
+  --server=${KUBE_APISERVER}
+# 设置客户端认证参数
+kubectl config set-credentials admin \
+  --client-certificate=/etc/kubernetes/ssl/admin.pem \
+  --embed-certs=true \
+  --client-key=/etc/kubernetes/ssl/admin-key.pem
+# 设置上下文参数
+kubectl config set-context kubernetes \
+  --cluster=kubernetes \
+  --user=admin
+# 设置默认上下文
+kubectl config use-context kubernetes
+
+14. 创建 TLS Bootstrapping Token
+
+export BOOTSTRAP_TOKEN=$(head -c 16 /dev/urandom | od -An -t x | tr -d ' ')
+cat > token.csv <<EOF
+${BOOTSTRAP_TOKEN},kubelet-bootstrap,10001,"system:bootstrappers"
+EOF
+cp token.csv /etc/kubernetes/
+
+15. 创建 kubelet bootstrapping kubeconfig 文件
+
+cd /etc/kubernetes
+#master上后面修改为本机ip，node上修改为127.0.0.1通过nginx反向代理出去。
+export KUBE_APISERVER="https://10.255.247.126:6443"
+ 
+# 设置集群参数
+kubectl config set-cluster kubernetes \
+  --certificate-authority=/etc/kubernetes/ssl/ca.pem \
+  --embed-certs=true \
+  --server=${KUBE_APISERVER} \
+  --kubeconfig=bootstrap.kubeconfig
+ 
+# 设置客户端认证参数
+kubectl config set-credentials kubelet-bootstrap \
+  --token=${BOOTSTRAP_TOKEN} \
+  --kubeconfig=bootstrap.kubeconfig
+ 
+# 设置上下文参数
+kubectl config set-context default \
+  --cluster=kubernetes \
+  --user=kubelet-bootstrap \
+  --kubeconfig=bootstrap.kubeconfig
+ 
+# 设置默认上下文，这个的意思是你使用kubectl命令时默认的namespace（不带-n参数时），这里配置的默认的namespace就是default。
+kubectl config use-context default --kubeconfig=bootstrap.kubeconfig
+
+16. 创建 kube-proxy kubeconfig 文件
+#master上后面修改为本机ip，node上修改为127.0.0.1通过nginx反向代理出去。
+export KUBE_APISERVER="https://10.255.247.126:6443"
+# 设置集群参数
+kubectl config set-cluster kubernetes \
+  --certificate-authority=/etc/kubernetes/ssl/ca.pem \
+  --embed-certs=true \
+  --server=${KUBE_APISERVER} \
+  --kubeconfig=kube-proxy.kubeconfig
+# 设置客户端认证参数
+kubectl config set-credentials kube-proxy \
+  --client-certificate=/etc/kubernetes/ssl/kube-proxy.pem \
+  --client-key=/etc/kubernetes/ssl/kube-proxy-key.pem \
+  --embed-certs=true \
+  --kubeconfig=kube-proxy.kubeconfig
+# 设置上下文参数
+kubectl config set-context default \
+  --cluster=kubernetes \
+  --user=kube-proxy \
+  --kubeconfig=kube-proxy.kubeconfig
+# 设置默认上下文
+kubectl config use-context default --kubeconfig=kube-proxy.kubeconfig
+
+17.分发 kubeconfig 文件，将两个 kubeconfig 文件分发到所有 Node 机器的 /etc/kubernetes/ 目录
+
+cp bootstrap.kubeconfig kube-proxy.kubeconfig /etc/kubernetes/
+scp ./bootstrap.kubeconfig kube-proxy.kubeconfig 10.255.247.126:/etc/kubernetes/
+scp ./bootstrap.kubeconfig kube-proxy.kubeconfig 10.255.247.127:/etc/kubernetes/
+scp ./bootstrap.kubeconfig kube-proxy.kubeconfig 10.255.247.128:/etc/kubernetes/
+
+18.安装etcd
+yum install -y etcd
+
+---------------------------------------------------etcd01----------------------------------------------------
+cat << EOF > /etc/etcd/etcd.conf
+#[Member]
+ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+ETCD_LISTEN_PEER_URLS="https://10.255.247.121:2380"
+ETCD_LISTEN_CLIENT_URLS="https://127.0.0.1:2379,https://10.255.247.121:2379"
+ETCD_NAME="etcd01"
+
+#[Clustering]
+ETCD_INITIAL_ADVERTISE_PEER_URLS="https://10.255.247.121:2380"
+ETCD_ADVERTISE_CLIENT_URLS="https://127.0.0.1:2379,https://10.255.247.121:2379"
+ETCD_INITIAL_CLUSTER="etcd01=https://10.255.247.121:2380,etcd02=https://10.255.247.122:2380,etcd03=https://10.255.247.123:2380"
+ETCD_INITIAL_CLUSTER_TOKEN="Synet"
+
+#[Security]
+ETCD_CERT_FILE="/etc/kubernetes/ssl/kubernetes.pem"
+ETCD_KEY_FILE="/etc/kubernetes/ssl/kubernetes-key.pem"
+ETCD_TRUSTED_CA_FILE="/etc/kubernetes/ssl/ca.pem"
+ETCD_PEER_CERT_FILE="/etc/kubernetes/ssl/kubernetes.pem"
+ETCD_PEER_KEY_FILE="/etc/kubernetes/ssl/kubernetes-key.pem"
+ETCD_PEER_TRUSTED_CA_FILE="/etc/kubernetes/ssl/ca.pem"
+EOF
+
+---------------------------------------------------etcd02---------------------------------------
+cat << EOF > /etc/etcd/etcd.conf
+#[Member]
+ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+ETCD_LISTEN_PEER_URLS="https://10.255.247.122:2380"
+ETCD_LISTEN_CLIENT_URLS="https://127.0.0.1:2379,https://10.255.247.122:2379"
+ETCD_NAME="etcd02"
+
+#[Clustering]
+ETCD_INITIAL_ADVERTISE_PEER_URLS="https://10.255.247.122:2380"
+ETCD_ADVERTISE_CLIENT_URLS="https://127.0.0.1:2379,https://10.255.247.122:2379"
+ETCD_INITIAL_CLUSTER="etcd01=https://10.255.247.121:2380,etcd02=https://10.255.247.122:2380,etcd03=https://10.255.247.123:2380"
+ETCD_INITIAL_CLUSTER_TOKEN="Synet"
+
+#[Security]
+ETCD_CERT_FILE="/etc/kubernetes/ssl/kubernetes.pem"
+ETCD_KEY_FILE="/etc/kubernetes/ssl/kubernetes-key.pem"
+ETCD_TRUSTED_CA_FILE="/etc/kubernetes/ssl/ca.pem"
+ETCD_PEER_CERT_FILE="/etc/kubernetes/ssl/kubernetes.pem"
+ETCD_PEER_KEY_FILE="/etc/kubernetes/ssl/kubernetes-key.pem"
+ETCD_PEER_TRUSTED_CA_FILE="/etc/kubernetes/ssl/ca.pem"
+EOF
+
+--------------------------------------------------------------etcd03-------------------------------------------------------------
+cat << EOF > /etc/etcd/etcd.conf
+#[Member]
+ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+ETCD_LISTEN_PEER_URLS="https://10.255.247.123:2380"
+ETCD_LISTEN_CLIENT_URLS="https://127.0.0.1:2379,https://10.255.247.123:2379"
+ETCD_NAME="etcd03"
+
+#[Clustering]
+ETCD_INITIAL_ADVERTISE_PEER_URLS="https://10.255.247.123:2380"
+ETCD_ADVERTISE_CLIENT_URLS="https://127.0.0.1:2379,https://10.255.247.123:2379"
+ETCD_INITIAL_CLUSTER="etcd01=https://10.255.247.121:2380,etcd02=https://10.255.247.122:2380,etcd03=https://10.255.247.123:2380"
+ETCD_INITIAL_CLUSTER_TOKEN="Synet"
+
+#[Security]
+ETCD_CERT_FILE="/etc/kubernetes/ssl/kubernetes.pem"
+ETCD_KEY_FILE="/etc/kubernetes/ssl/kubernetes-key.pem"
+ETCD_TRUSTED_CA_FILE="/etc/kubernetes/ssl/ca.pem"
+ETCD_PEER_CERT_FILE="/etc/kubernetes/ssl/kubernetes.pem"
+ETCD_PEER_KEY_FILE="/etc/kubernetes/ssl/kubernetes-key.pem"
+ETCD_PEER_TRUSTED_CA_FILE="/etc/kubernetes/ssl/ca.pem"
+EOF
+
+-----------------------------------------------------etcd end------------------------------------------------------------------
+chown -R etcd:etcd /etc/kubernetes/ssl
+systemctl daemon-reload
+systemctl enable etcd
+systemctl start etcd
+systemctl status etcd
+
+v2版本
+etcdctl --endpoints "https://127.0.0.1:2379"   --ca-file=/etc/kubernetes/ssl/ca.pem  \
+--cert-file=/etc/kubernetes/ssl/kubernetes.pem   --key-file=/etc/kubernetes/ssl/kubernetes-key.pem   cluster-health
+
+v3版本
+export ETCDCTL_API=3
+etcdctl --cacert=/etc/kubernetes/ssl/ca.pem --cert=/etc/kubernetes/ssl/kubernetes.pem \
+--key=/etc/kubernetes/ssl/kubernetes-key.pem \
+--endpoints=https://10.255.247.121:2379,https://10.255.247.122:2379,https://10.255.247.123:2379 endpoint health
+------------------------
+
+
+
+
+
+
+

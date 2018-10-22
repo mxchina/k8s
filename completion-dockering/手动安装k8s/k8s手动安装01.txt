@@ -1,0 +1,119 @@
+
+生成的 CA 证书和秘钥文件如下：
+
+ca-key.pem
+ca.pem
+kubernetes-key.pem
+kubernetes.pem
+kube-proxy.pem
+kube-proxy-key.pem
+admin.pem
+admin-key.pem
+使用证书的组件如下：
+
+etcd：使用 ca.pem、kubernetes-key.pem、kubernetes.pem；                                  用于对API服务器进行身份验证的kubelet的客户端证书
+
+kube-apiserver：使用 ca.pem、kubernetes-key.pem、kubernetes.pem；                        API服务器端点的服务器证书、API服务器的客户端证书与kubelet通信
+
+kubelet：使用 ca.pem；                                                                   用于对API服务器进行身份验证的kubelet的客户端证书
+
+kube-proxy：使用 ca.pem、kube-proxy-key.pem、kube-proxy.pem；                            集群管理员的客户端证书，用于向API服务器进行身份验证
+
+kubectl：使用 ca.pem、admin-key.pem、admin.pem；                                         用于对API服务器进行身份验证的kubelet的客户端证书
+
+kube-controller-manager：使用 ca-key.pem、ca.pem
+
+-------------------------------------------------------------------------
+
+Kubernetes需要PKI进行以下操作：
+
+用于对API服务器进行身份验证的kubelet的客户端证书
+API服务器端点的服务器证书
+集群管理员的客户端证书，用于向API服务器进行身份验证
+API服务器的客户端证书与kubelet通信
+要与etcd通信的API服务器的客户端证书
+客户端证书/ kubeconfig，供控制器管理器与API服务器通信
+客户端证书/ kubeconfig，供调度程序与API服务器通信。
+
+
+
+WiFi0Admin@9
+
+
+
+kubectl create clusterrolebinding node-client-auto-approve-csr \
+        --clusterrole=system:certificates.k8s.io:certificatesigningrequests:nodeclient \
+        --group=system:bootstrap
+		
+		
+		
+vgcreate var_vg /dev/sdb
+lvcreate -n var_lv -l 100%FREE var_vg
+mkfs.xfs /dev/var_vg/var_lv
+mkdir /synet
+mount /dev/var_vg/var_lv /var
+
+echo "/dev/var_vg/var_lv    /var                  xfs    defaults        1 2" >> /etc/fstab	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		
